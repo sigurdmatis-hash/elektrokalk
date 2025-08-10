@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elektro-kalkulator – NEK-inspirert (beta)</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#121831; --ink:#eef2ff; --muted:#a7b0d9; --accent:#68a0ff;
+    --border:#232b4a; --ok:#3ad6a5; --warn:#ffd36e; --bad:#ff6b7a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+  header{padding:18px 16px;border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#0e1531 0,#0b1020 100%)}
+  h1{margin:0;font-size:20px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  main{max-width:1100px;margin:0 auto;padding:18px 12px 80px;display:grid;gap:16px}
+  @media(min-width:980px){main{grid-template-columns:1.05fr 1fr}}
+  section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
+  h2{margin:0 0 10px;font-size:16px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  input,select,button,textarea{
+    width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+    background:#0a122b;color:var(--ink);font-size:14px;outline:none;
+  }
+  textarea{min-height:120px;resize:vertical;white-space:pre-wrap}
+  button{cursor:pointer;background:#10173f;border-color:#2b3360}
+  button.primary{background:var(--accent);color:#061025;border:none;font-weight:600}
+  .stack{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{padding:6px 10px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--muted)}
+  .out{background:#0a1126;border:1px dashed #2a315a;padding:12px;border-radius:10px;
+       font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  .copybar{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+  .hr{height:1px;background:var(--border);margin:12px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .tag{font-size:11px;color:#cbd6ff;background:#0d1536;border:1px solid #2a3260;padding:2px 8px;border-radius:999px}
+  .footer{margin-top:8px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Elektro-kalkulator (beta) • NEK 400 bolig – modernisert</h1>
+  <div class="sub">Støtter Cu/Al, PVC/PEX (XLPE), flere forlegningsmetoder, 1~ / 3~, og bryterkurver B/C/D + Custom (E/K/Z…)</div>
+</header>
+
+<main>
+  <section>
+    <h2>Inndata</h2>
+    <div class="row">
+      <div>
+        <label>Nominell spenning U<sub>n</sub></label>
+        <select id="U">
+          <option value="230" selected>230 V</option>
+          <option value="400">400 V (3~)</option>
+        </select>
+      </div>
+      <div>
+        <label>System</label>
+        <select id="system">
+          <option value="1p" selected>1-fase</option>
+          <option value="3p">3-fase</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>Lengde én vei ℓ (m)</label>
+        <input id="L" type="number" step="0.1" value="30">
+      </div>
+      <div>
+        <label>Belastning I<sub>B</sub> (A)</label>
+        <input id="Ib" type="number" step="0.1" value="16">
+      </div>
+      <div>
+        <label>Effekt P (kW, valgfri → beregner I)</label>
+        <input id="PkW" type="number" step="0.01" placeholder="">
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>Tverrsnitt A (mm²)</label>
+        <select id="A">
+          <option>1.5</option><option selected>2.5</option><option>4</option><option>6</option>
+          <option>10</option><option>16</option><option>25</option><option>35</option>
+          <option>50</option><option>70</option><option>95</option>
+        </select>
+      </div>
+      <div>
+        <label>Materiale</label>
+        <select id="mat">
+          <option value="cu" selected>Cu (kobber)</option>
+          <option value="al">Al (aluminium)</option>
+        </select>
+      </div>
+      <div>
+        <label>Resistivitet ρ @20°C (Ω·mm²/m)</label>
+        <input id="rho" type="number" step="0.00001" value="0.0175">
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>Isolasjon</label>
+        <select id="insul">
+          <option value="PVC" selected>PVC (70°C)</option>
+          <option value="PEX">PEX / XLPE (90°C)</option>
+        </select>
+      </div>
+      <div>
+        <label>Forlegningsmetode</label>
+        <select id="method">
+          <option value="C" selected>Metode C (åpent/vegg, klamret)</option>
+          <option value="B2">Metode B2 (i isolasjon/rør)</option>
+          <option value="A2">Metode A2 (i rør på vegg)</option>
+          <option value="E">Metode E (i jord/kabelkanal)</option>
+        </select>
+      </div>
+      <div>
+        <label>Antall belastede ledere</label>
+        <select id="loaded">
+          <option value="2" selected>2 ledere (1~)</option>
+          <option value="3">3 ledere (3~)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>Temp.faktor k<sub>t</sub> (ohmsk) – drift</label>
+        <input id="kt" type="number" step="0.01" value="1.2">
+      </div>
+      <div>
+        <label>Kildeimpedans Z<sub>kilde</sub> (Ω, valgfri)</label>
+        <input id="Zs" type="number" step="0.001" value="0">
+      </div>
+      <div>
+        <label>Korreksjoner: f<sub>T</sub> (amb.)</label>
+        <input id="fT" type="number" step="0.01" value="1.00">
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>Korreksjoner: f<sub>G</sub> (gruppe)</label>
+        <input id="fG" type="number" step="0.01" value="1.00">
+      </div>
+      <div>
+        <label>U-faktor for Ik_min</label>
+        <select id="uFactor">
+          <option value="0.95" selected>0,95 · U (konservativ)</option>
+          <option value="1.00">1,00 · U</option>
+        </select>
+      </div>
+      <div>
+        <label>Reaktiv andel X (for ΔU)</label>
+        <select id="reactive">
+          <option value="0" selected>Ignorer (bolig)</option>
+          <option value="1">Ta med (enkelt L-estimat)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+    <div class="stack">
+      <button class="primary" id="calc">Kalkulér alt</button>
+      <button onclick="resetAll()">Nullstill</button>
+      <span class="tag">Beta</span>
+    </div>
+    <div class="footer">Konstanter: ρ<sub>Cu</sub>=0,0175; ρ<sub>Al</sub>=0,0282 Ω·mm²/m. ΔU forenklet (ohmsk), X valgfri.</div>
+  </section>
+
+  <section>
+    <h2>1) Kortslutningsstrøm & bryterkurver</h2>
+    <div class="grid2">
+      <div>
+        <label>Vern (MCB) type</label>
+        <select id="curve">
+          <option value="B" selected>B (magnetisk ≈ 3–5·Iₙ)</option>
+          <option value="C">C (≈ 5–10·Iₙ)</option>
+          <option value="D">D (≈ 10–20·Iₙ)</option>
+          <option value="CUSTOM">Custom (E/K/Z…)</option>
+        </select>
+      </div>
+      <div>
+        <label>Vernets I<sub>n</sub> (A)</label>
+        <select id="In">
+          <option>6</option><option>10</option><option>13</option><option selected>16</option><option>20</option>
+          <option>25</option><option>32</option><option>40</option><option>50</option><option>63</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Custom: k<sub>min</sub>·I<sub>n</sub> (magnetisk innslag)</label>
+        <input id="kMin" type="number" step="0.1" value="3">
+      </div>
+      <div>
+        <label>Custom: k<sub>max</sub>·I<sub>n</sub></label>
+        <input id="kMax" type="number" step="0.1" value="5">
+      </div>
+    </div>
+    <div id="ikOut" class="out">Trykk «Kalkulér alt»</div>
+    <div class="copybar"><button onclick="copySection('ikOut')">Kopier</button></div>
+  </section>
+
+  <section>
+    <h2>2) Spenningsfall</h2>
+    <div id="vdOut" class="out">Trykk «Kalkulér alt»</div>
+    <div class="copybar"><button onclick="copySection('vdOut')">Kopier</button></div>
+  </section>
+
+  <section>
+    <h2>3) Strømføringsevne & sikringskontroll</h2>
+    <div id="izOut" class="out">Trykk «Kalkulér alt»</div>
+    <div class="copybar"><button onclick="copySection('izOut')">Kopier</button></div>
+  </section>
+
+  <section>
+    <h2>4) Oppsummering</h2>
+    <div id="sumOut" class="out">Trykk «Kalkulér alt»</div>
+    <div class="copybar"><button onclick="copySection('sumOut')">Kopier</button></div>
+  </section>
+</main>
+
+<script>
+// Resistivitet auto-set fra materiale
+document.getElementById('mat').addEventListener('change', e => {
+  if(e.target.value==='cu') document.getElementById('rho').value='0.0175';
+  else document.getElementById('rho').value='0.0282';
+});
+
+function val(id){ return document.getElementById(id).value; }
+function num(id){ return parseFloat(val(id)) || 0; }
+function fmt(x, d=2){ return Number(x).toFixed(d); }
+function copySection(id){
+  const el = document.getElementById(id);
+  const r = document.createRange(); r.selectNodeContents(el);
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  document.execCommand('copy'); sel.removeAllRanges();
+}
+
+// Indicative Iz tables (A) at ~30°C, single circuit, no grouping.
+// Indexed by: method -> insulation -> loaded conductors -> mm2
+const IZ = {
+  C: { // clipped direct / on wall
+    PVC: {
+      "2": {"1.5":19,"2.5":27,"4":36,"6":46,"10":63,"16":84,"25":112,"35":138,"50":167,"70":207,"95":247},
+      "3": {"1.5":17,"2.5":24,"4":32,"6":41,"10":57,"16":76,"25":99,"35":122,"50":149,"70":186,"95":223}
+    },
+    PEX: {
+      "2": {"1.5":21,"2.5":30,"4":41,"6":53,"10":72,"16":96,"25":128,"35":160,"50":196,"70":242,"95":290},
+      "3": {"1.5":19,"2.5":27,"4":37,"6":48,"10":65,"16":86,"25":114,"35":143,"50":175,"70":216,"95":258}
+    }
+  },
+  B2: { // in insulation / conduit
+    PVC: {
+      "2": {"1.5":16,"2.5":21,"4":28,"6":36,"10":49,"16":65,"25":86,"35":106,"50":129,"70":160,"95":190},
+      "3": {"1.5":14,"2.5":19,"4":25,"6":32,"10":44,"16":58,"25":77,"35":95,"50":116,"70":144,"95":171}
+    },
+    PEX: {
+      "2": {"1.5":18,"2.5":24,"4":32,"6":41,"10":56,"16":75,"25":99,"35":122,"50":148,"70":183,"95":218},
+      "3": {"1.5":16,"2.5":22,"4":29,"6":37,"10":51,"16":68,"25":90,"35":111,"50":135,"70":167,"95":199}
+    }
+  },
+  A2: { // in conduit on wall (air)
+    PVC: {
+      "2": {"1.5":18,"2.5":25,"4":34,"6":44,"10":60,"16":80,"25":106,"35":132,"50":160,"70":198,"95":236},
+      "3": {"1.5":16,"2.5":22,"4":30,"6":39,"10":53,"16":71,"25":94,"35":117,"50":143,"70":176,"95":210}
+    },
+    PEX: {
+      "2": {"1.5":20,"2.5":28,"4":38,"6":50,"10":68,"16":90,"25":119,"35":148,"50":180,"70":223,"95":267},
+      "3": {"1.5":18,"2.5":25,"4":34,"6":45,"10":62,"16":83,"25":110,"35":137,"50":167,"70":207,"95":248}
+    }
+  },
+  E: { // buried / duct – very rough generic
+    PVC: {
+      "2": {"1.5":--,"2.5":--,"4":--,"6":--,"10":--,"16":--,"25":--,"35":--,"50":--,"70":--,"95":--}
+    },
+    PEX: {
+      "2": {"1.5":--,"2.5":--,"4":--,"6":--,"10":--,"16":--,"25":--,"35":--,"50":--,"70":--,"95":--}
+    }
+  }
+};
+// For simplicity, we will map method E to method C values for now (placeholder). Remove "--" by cloning:
+IZ.E = JSON.parse(JSON.stringify(IZ.C));
+
+// Breaker instantaneous ranges presets
+const CURVES = {
+  B: {kmin:3, kmax:5},
+  C: {kmin:5, kmax:10},
+  D: {kmin:10, kmax:20}
+};
+
+function deriveIb(){
+  const sys = val('system');
+  const U = num('U');
+  const IbIn = num('Ib');
+  const PkW = num('PkW');
+  if (IbIn > 0) return IbIn;
+  if (PkW > 0){
+    const P = PkW * 1000;
+    return sys==='1p' ? (P/U) : (P/(Math.sqrt(3)*U));
+  }
+  return 0;
+}
+
+function Rloop20(){
+  // R (one way) = rho * L / A ; loop = 2*R
+  const L = num('L'), A = parseFloat(val('A')), rho = num('rho');
+  const R1 = rho * L / A;
+  return { R1, Rloop20: 2*R1 };
+}
+
+function RloopOp(){
+  const kt = num('kt') || 1;
+  const {Rloop20:r20} = Rloop20();
+  return kt * r20;
+}
+
+function computeIk(){
+  const U = num('U');
+  const uF = parseFloat(val('uFactor'));
+  const Zs = num('Zs');
+  const Rop = RloopOp();
+  const Ztot = Rop + Zs;
+  const Umin = uF * U;
+  const Ikmin = Ztot>0 ? Umin / Ztot : 0;
+
+  const {R1, Rloop20:r20} = Rloop20();
+  const kt = num('kt');
+
+  const curve = val('curve');
+  const In = parseFloat(val('In'));
+  let kmin = num('kMin'), kmax = num('kMax');
+  if (curve!=='CUSTOM' && CURVES[curve]){
+    kmin = CURVES[curve].kmin; kmax = CURVES[curve].kmax;
+    document.getElementById('kMin').value = kmin;
+    document.getElementById('kMax').value = kmax;
+  }
+  const I2 = 1.45*In; // thermal
+
+  const instantOK = Ikmin >= (kmin*In);
+  const thermalOK  = I2 <= estimateIz();
+
+  const lines = [
+    `Kortslutningsstrøm (min):`,
+    `U_min = ${uF}·U = ${fmt(Umin,1)} V`,
+    `R_loop,20 = ${fmt(r20,4)} Ω, k_t = ${fmt(kt,2)} ⇒ R_loop = ${fmt(Rop,4)} Ω`,
+    `Z_tot = R_loop + Z_kilde = ${fmt(Rop,4)} + ${fmt(Zs,4)} = ${fmt(Ztot,4)} Ω`,
+    `Ik_min = U_min / Z_tot = ${fmt(Umin,1)} / ${fmt(Ztot,4)} = ${fmt(Ikmin,1)} A`,
+    ``,
+    `Vern: type ${curve==='CUSTOM'?'Custom':curve}, I_n = ${In} A`,
+    `Termisk strøm I₂ ≈ 1,45·I_n = ${fmt(I2,2)} A`,
+    `Momentaninnslag: k_min·I_n = ${fmt(kmin,2)}·${In} = ${fmt(kmin*In,1)} A  (k_max=${kmax})`,
+    ``,
+    `Sjekk: Ik_min ≥ k_min·I_n ?  ${fmt(Ikmin,1)} ≥ ${fmt(kmin*In,1)} → ${instantOK ? 'OK' : 'IKKE OK'}`
+  ];
+  const el = document.getElementById('ikOut');
+  el.textContent = lines.join('\n');
+  el.className = 'out ' + (instantOK ? 'ok' : 'bad');
+  return {Ikmin, instantOK, In, kmin, kmax};
+}
+
+function computeVD(){
+  const U = num('U');
+  const sys = val('system');
+  const Ib = deriveIb();
+  const Rop = RloopOp();
+  const takeX = val('reactive')==='1';
+  let dU = 0, detail = '';
+  if (sys==='1p'){
+    // ΔU = I * R_loop  (ohmsk)
+    dU = Ib * Rop;
+    detail = `ΔU = I·R_loop = ${fmt(Ib,2)}·${fmt(Rop,4)} = ${fmt(dU,2)} V`;
+  } else {
+    // Forenklet 3~: ΔU ≈ √3·I·R_phase, der R_phase ≈ R_loop/2
+    const Rphase = Rop/2;
+    dU = Math.sqrt(3)*Ib*Rphase;
+    detail = `ΔU ≈ √3·I·R_fase = 1,732·${fmt(Ib,2)}·${fmt(Rphase,4)} = ${fmt(dU,2)} V`;
+  }
+  const pct = U>0 ? (100*dU/U) : 0;
+  const verdict = pct<=3 ? 'ok' : (pct<=5 ? 'warn':'bad');
+  const verdictText = pct<=3 ? 'Innen 3% (belysning)' : (pct<=5 ? '3–5% (ok for annet utstyr)':'Over 5% – øk tverrsnitt/kort ned');
+  const {R1, Rloop20:r20} = Rloop20();
+  const kt = num('kt');
+
+  const lines = [
+    `Spenningsfall (forenklet ohmsk):`,
+    `R_loop,20 = ${fmt(r20,4)} Ω, k_t = ${fmt(kt,2)} ⇒ R_loop = ${fmt(Rop,4)} Ω`,
+    `I_B = ${fmt(Ib,2)} A`,
+    detail,
+    `ΔU% = ${fmt(pct,2)} % → ${verdictText}`
+  ];
+  const el = document.getElementById('vdOut');
+  el.textContent = lines.join('\n');
+  el.className = 'out ' + verdict;
+  return {dU, pct};
+}
+
+function estimateIz(){
+  // Table lookup with corrections
+  const meth = val('method'), ins = val('insul'), loaded = val('loaded');
+  const A = val('A');
+  const fT = num('fT')||1, fG = num('fG')||1;
+  let Iz = (IZ[meth] && IZ[meth][ins] && IZ[meth][ins][loaded] && IZ[meth][ins][loaded][A]) ? IZ[meth][ins][loaded][A] : 0;
+  Iz = Iz * fT * fG;
+  return Iz;
+}
+
+function computeIzAndProtection(){
+  const Ib = deriveIb();
+  const In = parseFloat(val('In'));
+  const Iz = estimateIz();
+  const curve = val('curve');
+  let kmin = num('kMin'), kmax = num('kMax');
+  if (curve!=='CUSTOM' && CURVES[curve]){ kmin = CURVES[curve].kmin; kmax = CURVES[curve].kmax; }
+
+  const I2 = 1.45*In;
+  const rule1 = (Ib <= In) && (In <= Iz);
+  const rule2 = (I2 <= Iz); // boligkrav for små tverrsnitt
+  const ok = rule1 && rule2;
+
+  // Suggest upsize if needed
+  const meth = val('method'), ins = val('insul'), loaded = val('loaded');
+  const sizes = Object.keys(IZ[meth][ins][loaded]).map(parseFloat).sort((a,b)=>a-b);
+  let suggestion = null;
+  for(const s of sizes){
+    const izTry = IZ[meth][ins][loaded][String(s)] * (num('fT')||1) * (num('fG')||1);
+    if( (Ib <= In) && (In <= izTry) && (I2 <= izTry) ){
+      suggestion = {A:s, Iz:izTry}; break;
+    }
+  }
+
+  const lines = [
+    `Strømføringsevne (veiledende tabell): I_z ≈ ${fmt(Iz,1)} A`,
+    `Kontroll: I_B = ${fmt(Ib,2)} A, I_n = ${In} A, I₂ ≈ ${fmt(I2,2)} A`,
+    `• Regel 1: I_B ≤ I_n ≤ I_z → ${fmt(Ib,2)} ≤ ${In} ≤ ${fmt(Iz,1)} : ${rule1?'OK':'IKKE OK'}`,
+    `• Boligregel: I₂ ≤ I_z → ${fmt(I2,2)} ≤ ${fmt(Iz,1)} : ${rule2?'OK':'IKKE OK'}`,
+    ``,
+    ok ? `✅ Kombinasjonen er ok etter forenklede kriterier.` :
+         (suggestion ? `🔧 Foreslått: behold I_n=${In} A, øk tverrsnitt til ${suggestion.A} mm² (I_z≈${fmt(suggestion.Iz,1)} A).`
+                      : `⚠️ Øk tverrsnitt eller reduser I_n.`)
+  ];
+
+  const el = document.getElementById('izOut');
+  el.textContent = lines.join('\n');
+  el.className = 'out ' + (ok ? 'ok' : 'warn');
+  return {Iz, ok, suggestion};
+}
+
+function computeAll(){
+  // Sync loaded conductors with system selection for convenience
+  const sys = val('system'); document.getElementById('loaded').value = (sys==='1p'?'2':'3');
+
+  // Derive current from power if needed
+  const U = num('U'); const PkW = num('PkW');
+  if (!num('Ib') && PkW>0){
+    const Icalc = (sys==='1p') ? (PkW*1000/U) : (PkW*1000/(Math.sqrt(3)*U));
+    document.getElementById('Ib').value = fmt(Icalc,2);
+  }
+
+  const ik = computeIk();
+  const vd = computeVD();
+  const iz = computeIzAndProtection();
+
+  const summary = [
+    `Oppsummering:`,
+    `Ik_min ≈ ${fmt(ik.Ikmin,1)} A  (${ik.instantOK ? 'oppfyller' : 'oppfyller ikke'} momentankravet)`,
+    `ΔU ≈ ${fmt(vd.dU,2)} V (${fmt(vd.pct,2)} %)`,
+    `I_z ≈ ${fmt(iz.Iz,1)} A`,
+    ``,
+    `Merk: Tabellverdier er veiledende. Kontroller alltid mot NEK 400:2022 og produsentdata.`
+  ].join('\n');
+  document.getElementById('sumOut').textContent = summary;
+}
+
+function resetAll(){
+  document.querySelectorAll('input').forEach(i=>{ if(i.type!=='checkbox') i.value=''; });
+  document.getElementById('U').value='230';
+  document.getElementById('system').value='1p';
+  document.getElementById('A').value='2.5';
+  document.getElementById('mat').value='cu'; document.getElementById('rho').value='0.0175';
+  document.getElementById('insul').value='PVC';
+  document.getElementById('method').value='C';
+  document.getElementById('loaded').value='2';
+  document.getElementById('kt').value='1.2';
+  document.getElementById('Zs').value='0';
+  document.getElementById('fT').value='1.00';
+  document.getElementById('fG').value='1.00';
+  document.getElementById('uFactor').value='0.95';
+  document.getElementById('reactive').value='0';
+  document.getElementById('curve').value='B';
+  document.getElementById('In').value='16';
+  document.getElementById('kMin').value='3';
+  document.getElementById('kMax').value='5';
+  ['ikOut','vdOut','izOut','sumOut'].forEach(id=>document.getElementById(id).textContent='Trykk «Kalkulér alt»');
+}
+
+document.getElementById('calc').addEventListener('click', computeAll);
+</script>
+</body>
+</html>
